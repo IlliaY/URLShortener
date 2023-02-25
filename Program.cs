@@ -1,6 +1,6 @@
 using URLShortener.DTOs;
-using URLShortener.Models;
 using StackExchange.Redis;
+using URLShortener.Services.RandomStringService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,18 +19,9 @@ app.MapPost("/shorturl", async (URLDTO url, HttpContext context, IRandomStringSe
 
     var shortUrl = randomStringService.GenerateRandomString();
 
-    var randomString = new String(Enumerable.Repeat(alphabet, 16).Select(s => s[rng.Next(s.Length)]).ToArray());
+    await db.StringSetAndGetAsync($"{shortUrl}", $"{url.URL}", TimeSpan.FromHours(24));
 
-    var shortUrl = new URLEntity
-    {
-        Id = new Guid(),
-        URL = url.URL,
-        ShortURL = randomString
-    };
-
-    await db.StringSetAndGetAsync($"{shortUrl.ShortURL}", $"{url.URL}", TimeSpan.FromHours(24));
-
-    var result = $"{context.Request.Scheme}://{context.Request.Host}/{shortUrl.ShortURL}";
+    var result = $"{context.Request.Scheme}://{context.Request.Host}/{shortUrl}";
 
     return Results.Ok(new ResponseDTO(result));
 
@@ -44,7 +35,7 @@ app.MapFallback(async (HttpContext context) =>
 
     if (redisValue.HasValue)
     {
-        return Results.Ok(new URLDTO($"{redisValue.ToString()}"));
+        return Results.Redirect($"{redisValue.ToString()}");
     }
 
     return Results.BadRequest("There are no links with this address");
