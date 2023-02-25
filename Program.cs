@@ -3,19 +3,21 @@ using URLShortener.Models;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddTransient<IRandomStringService, RandomStringService>();
+
 var app = builder.Build();
 var redis = ConnectionMultiplexer.Connect("localhost:6379");
 var db = redis.GetDatabase(0);
 
-app.MapPost("/shorturl", async (URLDTO url, HttpContext context) =>
+app.MapPost("/shorturl", async (URLDTO url, HttpContext context, IRandomStringService randomStringService) =>
 {
     if (!Uri.TryCreate(url.URL, UriKind.Absolute, out var uri))
     {
         return Results.BadRequest();
     }
 
-    const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
-    var rng = new Random();
+    var shortUrl = randomStringService.GenerateRandomString();
 
     var randomString = new String(Enumerable.Repeat(alphabet, 16).Select(s => s[rng.Next(s.Length)]).ToArray());
 
